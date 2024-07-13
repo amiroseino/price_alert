@@ -8,20 +8,20 @@ import tkinter as tk
 from tkinter import ttk
 from threading import Thread
 
-# Function to get the current coin price
-def get_coin_price(coin):
+# Function to get the current forex price
+def get_forex_price(pair):
     try:
-        ticker = yf.Ticker(coin)
-        coin_price = ticker.history(period="1m")['Close'].iloc[-1]
-        return coin_price
+        ticker = yf.Ticker(pair + "=X")
+        forex_price = ticker.history(period="1m")['Close'].iloc[-1]
+        return forex_price
     except Exception as e:
-        print(f"Failed to fetch {coin} price: {e}")
+        print(f"Failed to fetch {pair} price: {e}")
         return None
 
 # Function to send an email notification
-def send_email(sender_email, receiver_email, password, price, coin):
-    subject = f"{coin} Price Alert"
-    body = f"The current price of {coin} has reached ${price}"
+def send_email(sender_email, receiver_email, password, price, pair):
+    subject = f"{pair} Price Alert"
+    body = f"The current price of {pair} has reached {price}"
 
     msg = MIMEMultipart()
     msg['From'] = sender_email
@@ -41,14 +41,14 @@ def send_email(sender_email, receiver_email, password, price, coin):
     except Exception as e:
         print(f"Failed to send email: {e}")
 
-# Function to check the coin price periodically and send email if the price meets the target
-def check_price_periodically(sender_email, receiver_email, password, target_price, coin):
+# Function to check the forex price periodically and send email if the price meets the target
+def check_price_periodically(sender_email, receiver_email, password, target_price, pair):
     while True:
-        current_price = get_coin_price(coin)
+        current_price = get_forex_price(pair)
         if current_price:
-            print(f"Current {coin} Price: ${current_price}")
+            print(f"Current {pair} Price: {current_price}")
             if current_price >= target_price:
-                send_email(sender_email, receiver_email, password, current_price, coin)
+                send_email(sender_email, receiver_email, password, current_price, pair)
                 break
         time.sleep(60)  # Check the price every 60 seconds
 
@@ -58,12 +58,20 @@ def start_price_check():
     receiver_email = receiver_email_entry.get()
     password = password_entry.get()
     target_price = float(price_entry.get())
-    coin = coin_entry.get()
-    Thread(target=check_price_periodically, args=(sender_email, receiver_email, password, target_price, coin)).start()
+    pair = forex_combobox.get()
+    Thread(target=check_price_periodically, args=(sender_email, receiver_email, password, target_price, pair)).start()
+
+# Function to update the current price in the target price entry box
+def update_current_price(event):
+    pair = forex_combobox.get()
+    current_price = get_forex_price(pair)
+    if current_price:
+        price_entry.delete(0, tk.END)
+        price_entry.insert(0, f"{current_price:.2f}")
 
 # Setting up the GUI
 root = tk.Tk()
-root.title("Price Alert")
+root.title("Forex Price Alert")
 
 ttk.Label(root, text="Sender Email:").grid(column=0, row=0, padx=10, pady=5)
 sender_email_entry = ttk.Entry(root, width=30)
@@ -77,9 +85,11 @@ ttk.Label(root, text="Email Password:").grid(column=0, row=2, padx=10, pady=5)
 password_entry = ttk.Entry(root, width=30, show="*")
 password_entry.grid(column=1, row=2, padx=10, pady=5)
 
-ttk.Label(root, text="Coin Ticker:").grid(column=0, row=3, padx=10, pady=5)
-coin_entry = ttk.Entry(root, width=30)
-coin_entry.grid(column=1, row=3, padx=10, pady=5)
+ttk.Label(root, text="Forex Pair:").grid(column=0, row=3, padx=10, pady=5)
+forex_combobox = ttk.Combobox(root, values=["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"], width=27)
+forex_combobox.grid(column=1, row=3, padx=10, pady=5)
+forex_combobox.set("EURUSD")  # Set default value
+forex_combobox.bind("<<ComboboxSelected>>", update_current_price)  # Bind event
 
 ttk.Label(root, text="Target Price:").grid(column=0, row=4, padx=10, pady=5)
 price_entry = ttk.Entry(root, width=30)
